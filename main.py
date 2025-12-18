@@ -8,11 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .schemas import AnalyzeResponse, ItemResult, EstatResult
 from .services.estat import EStatClient
-from .services.ocr import OCRService
+from .services.vision import VisionService
 from .services.parser import ReceiptParser, TextUtils
 from .services.analyzer import PriceAnalyzer
 
-app = FastAPI(title="Receipt Deal Checker (e-Stat)", version="mvp-stable-4b-refactored")
+app = FastAPI(title="Receipt Deal Checker (e-Stat)", version="mvp-stable-5a-gemini")
 
 # 必要に応じてCORS設定などを追加
 app.add_middleware(
@@ -29,10 +29,8 @@ estat_client = EStatClient()
 def health():
     return {
         "ok": True,
-        "tesseract_cmd": settings.TESSERACT_CMD,
-        "tessdata_prefix": settings.TESSDATA_PREFIX,
+        "vision_model": VisionService.get_model_name(),
         "estat_app_id_set": bool(settings.APP_ID),
-        "tesseract_langs": OCRService.available_langs(),
     }
 
 @app.get("/metaSearch")
@@ -58,8 +56,8 @@ async def analyze_receipt(
 ):
     b = await file.read()
     
-    # ブロッキングなOCR処理をスレッドプールで実行
-    text = await asyncio.to_thread(OCRService.ocr_image, b)
+    # ブロッキングなLLM API呼び出しをスレッドプールで実行
+    text = await asyncio.to_thread(VisionService.extract_text_from_image, b)
 
     candidate_lines: List[str] = []
     for line in text.splitlines():
