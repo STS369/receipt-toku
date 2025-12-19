@@ -1,16 +1,13 @@
 import asyncio
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Optional
 
 from fastapi import FastAPI, File, UploadFile, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
-from .schemas import AnalyzeResponse, ItemResult, EstatResult
-from .services.estat import EStatClient
-from .services.vision import VisionService
-from .services.parser import ReceiptParser, TextUtils
-from .services.analyzer import PriceAnalyzer
+from config import settings
+from schemas import AnalyzeResponse, ItemResult, EstatResult
+from services import EStatClient, VisionService, ReceiptParser, TextUtils, judge
 
 app = FastAPI(title="Receipt Deal Checker (e-Stat)", version="mvp-stable-5a-gemini")
 
@@ -33,19 +30,23 @@ def health():
         "estat_app_id_set": bool(settings.APP_ID),
     }
 
+@app.get("/health")
+def health():
+    return {
+        "ok": True,
+        "vision_model": VisionService.get_model_name(),
+        "estat_app_id_set": bool(settings.APP_ID),
+    }
+
 @app.get("/metaSearch")
-def meta_search(q: str = Query(..., description="例: 食パン / 鶏卵 / 卵 など")):
-    statsDataId = estat_client.pick_stats_data_id()
-    class_maps = estat_client.get_class_maps(statsDataId)
+async def meta_search(q: str = Query(..., description="例: 食パン / 鶏卵 / 卵 など")):
+    statsDataId = await estat_client.pick_stats_data_id()
+    class_maps = await estat_client.get_class_maps(statsDataId)
 
-    hits: List[Dict[str, str]] = []
-    qq = TextUtils.simplify_key(q)
-
+    hits: list[dict[str, str]] = []
     # Parserのロジックを借りて検索
     hits = ReceiptParser._iter_class_name_hits(class_maps, q, limit=50)
     
-    # 既存ロジック補完 (parserの_iter...はCLASS_SEARCH_ORDER順で検索してlimitに達したら返す)
-    # 念のためここでも結果を確認して返す
     return {"statsDataId": statsDataId, "hits": hits}
 
 @app.post("/analyzeReceipt", response_model=AnalyzeResponse)
@@ -59,7 +60,7 @@ async def analyze_receipt(
     # ブロッキングなLLM API呼び出しをスレッドプールで実行
     text = await asyncio.to_thread(VisionService.extract_text_from_image, b)
 
-    candidate_lines: List[str] = []
+    candidate_lines: list[str] = []
     for line in text.splitlines():
         s = TextUtils.normalize_text(line)
         if s and re.search(r"\d{2,6}", s):
@@ -74,17 +75,14 @@ async def analyze_receipt(
             "ocr_lines_with_digits": candidate_lines[:60],
             "parsed_items": parsed_items[:30],
         }
-        canonical_candidates_debug: List[Dict[str, Any]] = []
+        canonical_candidates_debug: list[dict[str, Any]] = []
     else:
         debug_extra = {}
         canonical_candidates_debug = []
 
     try:
-        # e-Stat API 通信も同期的ならスレッドプールへ逃がすべきだが、
-        # EStatClient内部は requests.get を使っているので同期。
-        # ここも非同期化する。
-        statsDataId = await asyncio.to_thread(estat_client.pick_stats_data_id)
-        class_maps = await asyncio.to_thread(estat_client.get_class_maps, statsDataId)
+        statsDataId = await estat_client.pick_stats_data_id()
+        class_maps = await estat_client.get_class_maps(statsDataId)
         
         _, cdTime = ReceiptParser.resolve_time_code(class_maps, yyyymm)
         _, cdArea = ReceiptParser.resolve_area_code(class_maps, area_code)
@@ -115,7 +113,7 @@ async def analyze_receipt(
             },
         )
 
-    results: List[ItemResult] = []
+    results: list[ItemResult] = []
     deal = overpay = unknown = 0
     total_diff = 0.0
 
@@ -126,7 +124,7 @@ async def analyze_receipt(
         resolution = ReceiptParser.resolve_canonical(raw_name, class_maps)
         canonical = resolution.canonical
 
-        cls: Optional[Tuple[str, str]] = None
+        cls: tuple[str, Optional[str]] = None
         if resolution.class_id and resolution.class_code:
             cls = (resolution.class_id, resolution.class_code)
 
@@ -159,13 +157,12 @@ async def analyze_receipt(
             class_key, class_code = cls
             
             # API call
-            stat_price, stat_unit, note = await asyncio.to_thread(
-                estat_client.lookup_stat_price,
+            stat_price, stat_unit, note = await estat_client.lookup_stat_price(
                 statsDataId, cdTime, cdArea, class_key, class_code
             )
 
             if stat_price is not None:
-                diff, rate, j = PriceAnalyzer.judge(price, stat_price)
+                diff, rate, j = judge(price, stat_price)
                 total_diff += diff
                 if j == "DEAL":
                     deal += 1
