@@ -2,12 +2,11 @@ import base64
 import io
 import socket
 import logging
-from typing import List
 from PIL import Image
 from fastapi import HTTPException
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
-from ..config import settings
+from config import settings
 
 # --- IPv4強制パッチ (Windows環境での名前解決エラー対策) ---
 # 一部の環境でIPv6アドレスの名前解決に失敗し、Gemini APIに接続できない問題を回避します。
@@ -24,7 +23,7 @@ socket.getaddrinfo = _ipv4_getaddrinfo
 
 class VisionService:
     @staticmethod
-    def get_model_name() -> List[str]:
+    def get_model_name() -> list[str]:
         """現在設定されているGeminiモデル名を返します。"""
         if settings.GEMINI_MODEL:
             return [settings.GEMINI_MODEL]
