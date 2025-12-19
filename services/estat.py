@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import Any, Optional
+from typing import Any
 import httpx
 from fastapi import HTTPException
 from config import settings, CLASS_SEARCH_ORDER, ESTAT_NAME_HINTS
@@ -22,7 +22,7 @@ ESTAT_TABLE_SCORE_WEIGHTS = [
 class EStatClient:
     def __init__(self):
         # モジュールレベルからインスタンスレベルへ移動したキャッシュ
-        self._stats_data_id_cache: Optional[str] = None
+        self._stats_data_id_cache: str | None = None
         self._meta_cache: dict[str, dict[str, Any]] = {}
         self._class_map_cache: dict[str, dict[str, dict[str, str]]] = {}
 
@@ -34,7 +34,7 @@ class EStatClient:
         params = {"appId": settings.APP_ID, **params}
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=90.0, connect=5.0)) as client:
-            last_err: Optional[Exception] = None
+            last_err: Exception | None = None
             for i in range(3):
                 try:
                     r = await client.get(url, params=params)
@@ -154,7 +154,6 @@ class EStatClient:
         def score(t: dict[str, Any]) -> int:
             title = str(t.get("TITLE", ""))
             s = 0
-            # 指摘への対応: 外部で定義した定数を使用
             for kw, w in ESTAT_TABLE_SCORE_WEIGHTS:
                 if kw in title:
                     s += w
@@ -189,11 +188,11 @@ class EStatClient:
     async def lookup_stat_price(
         self,
         statsDataId: str,
-        cdTime: Optional[str],
-        cdArea: Optional[str],
+        cdTime: str | None,
+        cdArea: str | None,
         class_key: str,
         class_code: str,
-    ) -> tuple[Optional[float], Optional[str], Optional[str]]:
+    ) -> tuple[float | None, str | None, str | None]:
         params: dict[str, Any] = {"statsDataId": statsDataId, "limit": 1}
         if cdTime:
             params["cdTime"] = cdTime
