@@ -1,4 +1,5 @@
 import google.generativeai as genai
+import socket
 from config import settings
 
 # =================================================================
@@ -6,20 +7,19 @@ from config import settings
 # config.py の settings 経由で環境変数を取得します
 # =================================================================
 
+# IPv4強制パッチ (一部の環境での名前解決エラー対策)
+_original_getaddrinfo = socket.getaddrinfo
+def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    if family == socket.AF_UNSPEC:
+        family = socket.AF_INET
+    return _original_getaddrinfo(host, port, family, type, proto, flags)
+socket.getaddrinfo = _ipv4_getaddrinfo
+
 api_key = settings.GEMINI_API_KEY
 
 if not api_key:
     print("エラー: 環境変数 'GEMINI_API_KEY' が設定されていません。")
 else:
-    # IPv4強制パッチ (一部の環境での名前解決エラー対策)
-    import socket
-    _original_getaddrinfo = socket.getaddrinfo
-    def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-        if family == socket.AF_UNSPEC:
-            family = socket.AF_INET
-        return _original_getaddrinfo(host, port, family, type, proto, flags)
-    socket.getaddrinfo = _ipv4_getaddrinfo
-
     print(f"APIキー: {api_key[:5]}... (config経由での読み込み成功)")
     print("利用可能なモデルを問い合わせ中...")
     
