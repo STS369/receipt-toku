@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from schemas import AnalyzeResponse, ItemResult, EstatResult
-from services import EStatClient, VisionService, ReceiptParser, normalize_text, simplify_key, fold_key, judge
+from services import EStatClient, get_model_name, extract_text_from_image, ReceiptParser, normalize_text, simplify_key, fold_key, judge
 
 app = FastAPI(title="Receipt Deal Checker (e-Stat)", version="mvp-stable-5a-gemini")
 
@@ -26,7 +26,7 @@ estat_client = EStatClient()
 def health():
     return {
         "ok": True,
-        "vision_model": VisionService.get_model_name(),
+        "vision_model": get_model_name(),
         "estat_app_id_set": bool(settings.APP_ID),
     }
 
@@ -34,7 +34,7 @@ def health():
 def health():
     return {
         "ok": True,
-        "vision_model": VisionService.get_model_name(),
+        "vision_model": get_model_name(),
         "estat_app_id_set": bool(settings.APP_ID),
     }
 
@@ -58,7 +58,7 @@ async def analyze_receipt(
     b = await file.read()
     
     # ブロッキングなLLM API呼び出しをスレッドプールで実行
-    text = await asyncio.to_thread(VisionService.extract_text_from_image, b)
+    text = await asyncio.to_thread(extract_text_from_image, b)
 
     candidate_lines: list[str] = []
     for line in text.splitlines():
