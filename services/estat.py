@@ -19,6 +19,16 @@ ESTAT_TABLE_SCORE_WEIGHTS = [
     ("物価", 2)
 ]
 
+def _calculate_stats_table_score(table_info: dict[str, Any]) -> int:
+    """統計表のタイトルから、探し物（小売物価統計）である可能性をスコア化します。"""
+    title = str(table_info.get("TITLE", ""))
+    score = 0
+    for keyword, weight in ESTAT_TABLE_SCORE_WEIGHTS:
+        if keyword in title:
+            score += weight
+    return score
+
+
 class EStatClient:
     def __init__(self):
         # モジュールレベルからインスタンスレベルへ移動したキャッシュ
@@ -151,15 +161,8 @@ class EStatClient:
         if not lst:
             raise HTTPException(status_code=502, detail="該当する統計表が見つかりませんでした。")
 
-        def score(t: dict[str, Any]) -> int:
-            title = str(t.get("TITLE", ""))
-            s = 0
-            for kw, w in ESTAT_TABLE_SCORE_WEIGHTS:
-                if kw in title:
-                    s += w
-            return s
-
-        ranked = sorted(lst, key=score, reverse=True)[:25]
+        # 指摘への対応: ネストされたscore関数を削除し、独立した関数を使用して並び替え
+        ranked = sorted(lst, key=_calculate_stats_table_score, reverse=True)[:25]
         must_like = ["鶏卵", "卵", "食パン", "牛乳"]
 
         for t in ranked:
