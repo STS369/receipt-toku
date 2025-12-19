@@ -1,6 +1,3 @@
-import os
-import re
-from pathlib import Path
 from typing import Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,7 +14,13 @@ class Settings(BaseSettings):
     # --- Gemini Vision API 設定 ---
     gemini_api_base_url: str = "https://generativelanguage.googleapis.com/v1beta/models"
     gemini_api_key: str = ""
+    
+    # 指摘への対応: 推奨モデルをデフォルト値として固定
+    # 環境変数 GEMINI_MODEL が未設定の場合はこの値が使われます
     gemini_model: str = "gemini-flash-latest"
+    
+    # 予期せぬエラー時や、より高精度な解析が必要な場合の代替モデル（無料枠内で利用可能）
+    gemini_model_fallback: str = "gemini-1.5-pro"
 
     # Pydantic Settings の設定
     model_config = SettingsConfigDict(
@@ -64,7 +67,7 @@ ITEM_RULES: list[dict[str, Any]] = [
     {"canonical": "たまねぎ", "keywords": ["たまねぎ", "玉ねぎ", "オニオン"]},
     {"canonical": "じゃがいも", "keywords": ["じゃがいも", "ジャガ", "ポテト"]},
     {"canonical": "トマト", "keywords": ["トマト"]},
-    {"canonical": "りんご", "keywords": ["りんご", "リンゴ", "林檎", "APPLE"]},
+    {"canonical": "りんご", "りんご": ["リンゴ", "林檎", "APPLE"]},
     {"canonical": "アイスクリーム", "keywords": ["アイス", "アイスクリーム", "ICE"]},
     {
         "canonical": "即席めん",
