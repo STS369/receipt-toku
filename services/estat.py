@@ -1,90 +1,112 @@
+import asyncio
 import time
-from typing import Any, Dict, List, Optional, Tuple
-import requests
+from typing import Any, Optional
+import httpx
 from fastapi import HTTPException
-from ..config import settings, CLASS_SEARCH_ORDER, ESTAT_NAME_HINTS
-from ..services.parser import ReceiptParser # 循環参照の可能性に注意、必要な関数だけutilsにする手もあるが一旦これで作る
-
-# モジュールレベルキャッシュ (簡易的なインメモリキャッシュ)
-_STATS_DATA_ID_CACHE: Optional[str] = None
-_META_CACHE: Dict[str, Dict[str, Any]] = {}
-_CLASS_MAP_CACHE: Dict[str, Dict[str, Dict[str, str]]] = {}
+from config import settings, CLASS_SEARCH_ORDER, ESTAT_NAME_HINTS
 
 class EStatClient:
     def __init__(self):
-        # スレッドセーフにするため、リクエスト毎にセッションを作るか、あるいは
-        # requests.get を直接使う。ここでは単純化のため requests.get を使う。
-        # 必要ならコネクションプーリングの設定をした session を依存性注入で渡す設計にする。
-        pass
+        # モジュールレベルからインスタンスレベルへ移動したキャッシュ
+        self._stats_data_id_cache: Optional[str] = None
+        self._meta_cache: dict[str, dict[str, Any]] = {}
+        self._class_map_cache: dict[str, dict[str, dict[str, str]]] = {}
 
-    def _get(self, path: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
         if not settings.APP_ID:
             raise HTTPException(status_code=500, detail="ESTAT_APP_ID が設定されていません。")
 
         url = f"{settings.ESTAT_BASE_URL}/{path}"
         params = {"appId": settings.APP_ID, **params}
 
-        last_err: Optional[Exception] = None
-        for i in range(3):
-            try:
-                # タイムアウトを設定
-                r = requests.get(url, params=params, timeout=(5, 90))
-                r.raise_for_status()
-                return r.json()
-            except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
-                last_err = e
-                time.sleep(1.0 * (i + 1))
-            except requests.exceptions.HTTPError as e:
-                raise HTTPException(status_code=502, detail=f"e-Stat API HTTP error: {e}") from e
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=90.0, connect=5.0)) as client:
+            last_err: Optional[Exception] = None
+            for i in range(3):
+                try:
+                    r = await client.get(url, params=params)
+                    r.raise_for_status()
+                    
+                    try:
+                        return r.json()
+                    except ValueError as e:
+                        raise HTTPException(
+                            status_code=502, 
+                            detail=f"e-Stat APIからのレスポンスがJSON形式ではありません: {e}"
+                        )
 
-        raise HTTPException(status_code=504, detail=f"e-Stat API timeout/connection error: {last_err}") from last_err
+                except httpx.RequestError as e:
+                    last_err = e
+                    await asyncio.sleep(1.0 * (i + 1))
+                except httpx.HTTPStatusError as e:
+                    raise HTTPException(status_code=502, detail=f"e-Stat API HTTP error: {e}") from e
 
-    def get_meta(self, statsDataId: str) -> Dict[str, Any]:
-        if statsDataId in _META_CACHE:
-            return _META_CACHE[statsDataId]
-        meta = self._get("getMetaInfo", {"statsDataId": statsDataId})
-        _META_CACHE[statsDataId] = meta
+            raise HTTPException(
+                status_code=504, 
+                detail=f"e-Stat API 接続エラー(リトライ上限超過): {last_err}"
+            ) from last_err
+
+    async def get_meta(self, statsDataId: str) -> dict[str, Any]:
+        if statsDataId in self._meta_cache:
+            return self._meta_cache[statsDataId]
+        meta = await self._get("getMetaInfo", {"statsDataId": statsDataId})
+        self._meta_cache[statsDataId] = meta
         return meta
 
-    def extract_class_maps(self, meta_json: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
-        meta = ((((meta_json.get("GET_META_INFO") or {}).get("METADATA_INF") or {}).get("CLASS_INF") or {}))
-        class_objs = meta.get("CLASS_OBJ") or []
-        if isinstance(class_objs, dict):
-            class_objs = [class_objs]
+    def extract_class_maps(self, meta_json: dict[str, Any]) -> dict[str, dict[str, str]]:
+        try:
+            get_meta_info = meta_json.get("GET_META_INFO", {})
+            if not get_meta_info:
+                raise ValueError("レスポンスに 'GET_META_INFO' が含まれていません。")
+            
+            metadata_inf = get_meta_info.get("METADATA_INF", {})
+            if not metadata_inf:
+                raise ValueError("レスポンスに 'METADATA_INF' が含まれていません。")
 
-        out: Dict[str, Dict[str, str]] = {}
-        for obj in class_objs:
-            obj_id = str(obj.get("@id") or "")
-            classes = obj.get("CLASS") or []
-            if isinstance(classes, dict):
-                classes = [classes]
+            class_inf = metadata_inf.get("CLASS_INF", {})
+            if not class_inf:
+                raise ValueError("レスポンスに 'CLASS_INF' が含まれていません。")
 
-            m: Dict[str, str] = {}
-            for c in classes:
-                code = str(c.get("@code") or "")
-                name = str(c.get("@name") or "")
-                if code and name:
-                    m[name] = code
+            class_objs = class_inf.get("CLASS_OBJ", [])
+            if isinstance(class_objs, dict):
+                class_objs = [class_objs]
 
-            if obj_id:
-                out[obj_id] = m
-        return out
+            out: dict[str, dict[str, str]] = {}
+            for obj in class_objs:
+                obj_id = str(obj.get("@id", ""))
+                classes = obj.get("CLASS", [])
+                if isinstance(classes, dict):
+                    classes = [classes]
 
-    def get_class_maps(self, statsDataId: str) -> Dict[str, Dict[str, str]]:
-        if statsDataId in _CLASS_MAP_CACHE:
-            return _CLASS_MAP_CACHE[statsDataId]
-        meta = self.get_meta(statsDataId)
-        maps = self.extract_class_maps(meta)
-        _CLASS_MAP_CACHE[statsDataId] = maps
-        return maps
+                m: dict[str, str] = {}
+                for c in classes:
+                    code = str(c.get("@code", ""))
+                    name = str(c.get("@name", ""))
+                    if code and name:
+                        m[name] = code
 
-    def _table_has_any_item(self, class_maps: Dict[str, Dict[str, str]], keywords: List[str]) -> bool:
-        # 循環参照を避けるため簡易実装、または外部からパーサーロジックの一部を借りる
-        # ここでは単純な文字列マッチングで実装
-        from ..services.parser import TextUtils
+                if obj_id:
+                    out[obj_id] = m
+            return out
+        except (AttributeError, KeyError) as e:
+            raise ValueError(f"e-Statメタデータの解析に失敗しました(構造が不正です): {e}")
+
+    async def get_class_maps(self, statsDataId: str) -> dict[str, dict[str, str]]:
+        if statsDataId in self._class_map_cache:
+            return self._class_map_cache[statsDataId]
+        meta = await self.get_meta(statsDataId)
+        try:
+            maps = self.extract_class_maps(meta)
+            self._class_map_cache[statsDataId] = maps
+            return maps
+        except ValueError as e:
+            raise HTTPException(status_code=502, detail=str(e))
+
+    def _table_has_any_item(self, class_maps: dict[str, dict[str, str]], keywords: list[str]) -> bool:
+        from services import TextUtils
         
-        for obj_id in ["cat01", "tab", "cat02", "cat03"]:
-            mp = class_maps.get(obj_id) or {}
+        # 指摘への対応: 直接のリスト指定をやめ、config.pyの定数を使用
+        for obj_id in CLASS_SEARCH_ORDER:
+            mp = class_maps.get(obj_id, {})
             for name in mp.keys():
                 nn = TextUtils.simplify_key(name)
                 for kw in keywords:
@@ -92,21 +114,27 @@ class EStatClient:
                         return True
         return False
 
-    def pick_stats_data_id(self) -> str:
-        global _STATS_DATA_ID_CACHE
-        if _STATS_DATA_ID_CACHE:
-            return _STATS_DATA_ID_CACHE
+    async def pick_stats_data_id(self) -> str:
+        if self._stats_data_id_cache:
+            return self._stats_data_id_cache
 
-        data = self._get("getStatsList", {"searchWord": "小売物価統計調査 動向編 全国", "limit": 80})
-        lst = ((((data.get("GET_STATS_LIST") or {}).get("DATALIST_INF") or {}).get("TABLE_INF")) or [])
+        data = await self._get("getStatsList", {"searchWord": "小売物価統計調査 動向編 全国", "limit": 80})
+        
+        try:
+            stats_list = data.get("GET_STATS_LIST", {})
+            datalist_inf = stats_list.get("DATALIST_INF", {})
+            lst = datalist_inf.get("TABLE_INF", [])
+        except AttributeError:
+            raise HTTPException(status_code=502, detail="統計リストのデータ構造が不正です。")
+
         if isinstance(lst, dict):
             lst = [lst]
 
         if not lst:
-            raise HTTPException(status_code=502, detail="getStatsList が空でした。")
+            raise HTTPException(status_code=502, detail="該当する統計表が見つかりませんでした。")
 
-        def score(t: Dict[str, Any]) -> int:
-            title = str(t.get("TITLE") or "")
+        def score(t: dict[str, Any]) -> int:
+            title = str(t.get("TITLE", ""))
             s = 0
             for kw, w in [("全国統一", 5), ("月別", 3), ("全国", 2), ("価格", 1), ("小売", 2), ("物価", 2)]:
                 if kw in title:
@@ -117,37 +145,37 @@ class EStatClient:
         must_like = ["鶏卵", "卵", "食パン", "牛乳"]
 
         for t in ranked:
-            sid = str(t.get("@id") or t.get("ID") or "")
+            sid = str(t.get("@id") or t.get("ID", ""))
             if not sid:
                 continue
             try:
-                meta = self.get_meta(sid)
+                meta = await self.get_meta(sid)
                 cm = self.extract_class_maps(meta)
                 if self._table_has_any_item(cm, must_like):
-                    _STATS_DATA_ID_CACHE = sid
-                    _META_CACHE[sid] = meta
-                    _CLASS_MAP_CACHE[sid] = cm
+                    self._stats_data_id_cache = sid
+                    self._meta_cache[sid] = meta
+                    self._class_map_cache[sid] = cm
                     return sid
-            except HTTPException:
+            except (HTTPException, ValueError):
                 continue
 
         # fallback
         best = ranked[0]
-        sid = str(best.get("@id") or best.get("ID") or "")
+        sid = str(best.get("@id") or best.get("ID", ""))
         if not sid:
-            raise HTTPException(status_code=502, detail="statsDataId を取得できませんでした。")
-        _STATS_DATA_ID_CACHE = sid
+            raise HTTPException(status_code=502, detail="有効なstatsDataIdを特定できませんでした。")
+        self._stats_data_id_cache = sid
         return sid
 
-    def lookup_stat_price(
+    async def lookup_stat_price(
         self,
         statsDataId: str,
         cdTime: Optional[str],
         cdArea: Optional[str],
         class_key: str,
         class_code: str,
-    ) -> Tuple[Optional[float], Optional[str], Optional[str]]:
-        params: Dict[str, Any] = {"statsDataId": statsDataId, "limit": 1}
+    ) -> tuple[Optional[float], Optional[str], Optional[str]]:
+        params: dict[str, Any] = {"statsDataId": statsDataId, "limit": 1}
         if cdTime:
             params["cdTime"] = cdTime
         if cdArea:
@@ -160,11 +188,15 @@ class EStatClient:
         else:
             params[f"cd{class_key[0].upper()}{class_key[1:]}"] = class_code
 
-        data = self._get("getStatsData", params)
+        data = await self._get("getStatsData", params)
 
-        inf = (data.get("GET_STATS_DATA") or {}).get("STATISTICAL_DATA") or {}
-        datainf = inf.get("DATA_INF") or {}
-        values = datainf.get("VALUE") or []
+        try:
+            inf = data.get("GET_STATS_DATA", {}).get("STATISTICAL_DATA", {})
+            datainf = inf.get("DATA_INF", {})
+            values = datainf.get("VALUE", [])
+        except AttributeError:
+            return None, None, "レスポンスデータの解析に失敗しました。"
+
         if isinstance(values, dict):
             values = [values]
 
@@ -172,14 +204,15 @@ class EStatClient:
             return None, None, "VALUEが空（条件が合ってない可能性）"
 
         v0 = values[0]
-        raw_val = v0.get("$") if isinstance(v0, dict) else None
-        if raw_val is None and isinstance(v0, dict):
+        # 値の取得
+        raw_val = v0.get("$")
+        if raw_val is None:
             raw_val = v0.get("@value") or v0.get("value")
 
         try:
-            val = float(raw_val)
-        except Exception:
+            val = float(raw_val) if raw_val is not None else None
+        except (ValueError, TypeError):
             val = None
 
-        unit = v0.get("@unit") if isinstance(v0, dict) else None
+        unit = v0.get("@unit")
         return val, unit, None
