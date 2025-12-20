@@ -1,6 +1,6 @@
 from typing import Any
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import SecretStr
 
 # =================================================================
 # アプリケーション設定（Pydantic BaseSettings を使用）
@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # --- Gemini Vision API 設定 ---
     gemini_api_base_url: str = "https://generativelanguage.googleapis.com/v1beta/models"
-    gemini_api_key: SecretStr = ""
+    gemini_api_key: str = ""
     # 指摘への対応: 推奨モデルをデフォルト値として固定
     # 環境変数 GEMINI_MODEL が未設定の場合はこの値が使われます
     gemini_model: str = "gemini-flash-latest"

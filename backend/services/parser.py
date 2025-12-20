@@ -1,10 +1,15 @@
 import re
 import unicodedata
-from functools import lru_cache
 from datetime import datetime
+from functools import lru_cache
+
 from config import (
-    ITEM_RULES, UNKNOWN_RESCUE_NORMALIZE_MAP, UNKNOWN_RESCUE_CANDIDATE_RULES, CLASS_SEARCH_ORDER,
-    EXCLUDE_WORDS, ESTAT_NAME_HINTS
+    CLASS_SEARCH_ORDER,
+    ESTAT_NAME_HINTS,
+    EXCLUDE_WORDS,
+    ITEM_RULES,
+    UNKNOWN_RESCUE_CANDIDATE_RULES,
+    UNKNOWN_RESCUE_NORMALIZE_MAP,
 )
 from schemas import CanonicalResolution
 
@@ -218,7 +223,7 @@ def resolve_canonical(raw_name: str, class_maps: dict[str, dict[str, str]]) -> C
         return CanonicalResolution(canonical=canonical, class_id=None, class_code=None)
 
     candidates = _candidate_terms_for_unknown(raw_name)
-    tried: list[dict[str, str | int]] = []
+    tried: list[dict[str, str | int | list[dict[str, str]]]] = []
 
     all_hits: list[dict[str, str]] = []
     for term in candidates:
@@ -232,12 +237,16 @@ def resolve_canonical(raw_name: str, class_maps: dict[str, dict[str, str]]) -> C
             }
         )
 
+    def get_hits_count(d: dict[str, str | int | list[dict[str, str]]]) -> int:
+        hits = d.get("hits")
+        return int(hits) if isinstance(hits, int) else 0
+
     picked = _pick_best_hit(all_hits)
     if not picked:
-        tried_sorted = sorted(tried, key=lambda d: int(d.get("hits") or 0), reverse=True)[:3]
+        tried_sorted = sorted(tried, key=get_hits_count, reverse=True)[:3]
         return CanonicalResolution(canonical=None, candidates_debug=tried_sorted, class_id=None, class_code=None)
 
-    tried_sorted = sorted(tried, key=lambda d: int(d.get("hits") or 0), reverse=True)[:3]
+    tried_sorted = sorted(tried, key=get_hits_count, reverse=True)[:3]
     return CanonicalResolution(
         canonical=picked.get("name"),
         class_id=picked.get("class_id"),

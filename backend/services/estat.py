@@ -1,8 +1,9 @@
 import asyncio
 from typing import Any
+
 import httpx
+from config import CLASS_SEARCH_ORDER, settings
 from fastapi import HTTPException
-from config import settings, CLASS_SEARCH_ORDER
 
 # =================================================================
 # 統計表の重要度を判定するためのキーワードと重み付けの定義
@@ -151,7 +152,7 @@ class EStatClient:
             raise HTTPException(status_code=502, detail='統計リストのデータ構造が不正です。:{exc}') from exc
 
         if isinstance(lst, dict):
-            lst: list[dict[str, Any]] = datalist_inf.get("TABLE_INF", [])
+            lst = datalist_inf.get("TABLE_INF", [])
 
         if not lst:
             raise HTTPException(status_code=502, detail="該当する統計表が見つかりませんでした。")
@@ -212,7 +213,7 @@ class EStatClient:
             values = datainf.get("VALUE", [])
         except AttributeError:
             return None, None, "レスポンスデータの解析に失敗しました"
-        values: list[dict[Any, Any]] = datainf.get("VALUE", [])
+        values = datainf.get("VALUE", [])
 
         if not values:
             return None, None, "VALUEが空（条件が合ってない可能性）"

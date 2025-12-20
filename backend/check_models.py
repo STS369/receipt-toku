@@ -18,8 +18,8 @@ else:
 
         found_any = False
         # 最新のモデル一覧取得方法
-        for m in api_key.models.list():
-            print(f"- {m.name} (入力: {m.input_token_limit} tokens)")
+        for m in api_key.models.list():  # type: ignore
+            print(f"- {m.name} (入力: {m.input_token_limit} tokens)")  # type: ignore
             found_any = True
 
         if not found_any:

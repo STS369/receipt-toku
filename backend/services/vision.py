@@ -1,14 +1,14 @@
 import io
-import logging
 import json
+import logging
 from typing import Any
-from PIL import Image
+
+from config import settings
 from fastapi import HTTPException
 from loguru import logger
-
 from model.genai import client
 from model.prompt import SYSTEM_INSTRUCTION
-from config import settings
+from PIL import Image
 
 # =================================================================
 # Gemini 高度分析プロンプト定義
@@ -38,7 +38,7 @@ async def analyze_receipt_with_market_data(
         # 最新のモデル実行方法
         response = await client.aio.models.generate_content(
             model=settings.GEMINI_MODEL,
-            contents=[full_prompt, img]
+            contents=[full_prompt, img]  # type: ignore
         )
         logger.info("Gemini analysis completed.")
         if not response.text:

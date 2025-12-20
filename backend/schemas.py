@@ -1,4 +1,5 @@
 from typing import Any
+
 from pydantic import BaseModel, Field
 
 # =================================================================
@@ -8,12 +9,12 @@ from pydantic import BaseModel, Field
 
 class EstatResult(BaseModel):
     found: bool = Field(description="e-Statで統計価格が見つかったかどうか")
-    stat_price: float = Field(None, description="e-Statから取得した平均価格")
-    stat_unit: str = Field(None, description="統計価格の単位（例: 100g, 1パック）")
-    diff: float = Field(None, description="支払価格と統計価格の差額")
-    rate: float = Field(None, description="統計価格に対する乖離率（0.1 = +10%）")
+    stat_price: float | None = Field(None, description="e-Statから取得した平均価格")
+    stat_unit: str | None = Field(None, description="統計価格の単位（例: 100g, 1パック）")
+    diff: float | None = Field(None, description="支払価格と統計価格の差額")
+    rate: float | None = Field(None, description="統計価格に対する乖離率（0.1 = +10%）")
     judgement: str = Field("UNKNOWN", description="価格の妥当性判断（DEAL, OVERPAY, FAIR, UNKNOWN）")
-    note: str = Field(None, description="補足情報やエラー理由")
+    note: str | None = Field(None, description="補足情報やエラー理由")
 
 # =================================================================
 # 商品ごとの解析結果スキーマ
@@ -22,8 +23,8 @@ class EstatResult(BaseModel):
 
 class ItemResult(BaseModel):
     raw_name: str = Field(description="レシートに記載されていた元の名前")
-    canonical: str = Field(None, description="名寄せ後の標準的な商品名")
-    paid_unit_price: float = Field(None, description="レシートから抽出した支払単価")
+    canonical: str | None = Field(None, description="名寄せ後の標準的な商品名")
+    paid_unit_price: float | None = Field(None, description="レシートから抽出した支払単価")
     quantity: float = Field(1.0, description="購入数量")
     estat: EstatResult = Field(description="e-Statとの比較結果の詳細")
 
@@ -45,8 +46,8 @@ class AnalyzeResponse(BaseModel):
 
 
 class CanonicalResolution(BaseModel):
-    canonical: str = Field(None, description="解決された標準名称")
-    class_id: str = Field(None, description="e-StatのカテゴリID")
-    class_code: str = Field(None, description="e-Statの項目コード")
-    candidates_debug: list[dict[str, str | int]] = \
-        Field(default_factory=list[str, str | int], description="名寄せの際に検討された候補（デバッグ用）")
+    canonical: str | None = Field(None, description="解決された標準名称")
+    class_id: str | None = Field(None, description="e-StatのカテゴリID")
+    class_code: str | None = Field(None, description="e-Statの項目コード")
+    candidates_debug: list[dict[str, str | int | list[dict[str, str]]]] = \
+        Field(default=[], description="名寄せの際に検討された候補（デバッグ用）")
