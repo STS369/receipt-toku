@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { DebugPanel } from "../components/DebugPanel";
 import { ItemTable } from "../components/ItemTable";
 import { saveHistory } from "../lib/storage";
-import { AnalyzeResponse } from "../lib/types";
+import { AnalyzeResponse, StoredResult } from "../lib/types";
 
 type Props = {
   result: AnalyzeResponse | null;
@@ -32,7 +32,12 @@ export function ResultPage({ result, onEdit, onReAnalyze, summaryCount }: Props)
   }
 
   const save = () => {
-    saveHistory(result, result.purchase_date);
+    const stored: StoredResult = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      timestamp: Date.now(),
+      result
+    };
+    saveHistory(stored);
     setSaved(true);
     setNote("ローカル履歴に保存しました");
   };

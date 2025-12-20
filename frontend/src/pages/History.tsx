@@ -13,11 +13,11 @@ export function HistoryPage() {
     setSelected(h[0] || null);
   }, []);
 
-  const handleDelete = (at: number) => {
-    deleteHistoryItem(at);
+  const handleDelete = (id: string) => {
+    deleteHistoryItem(id);
     const next = loadHistory();
     setHistory(next);
-    if (selected?.at === at) {
+    if (selected?.id === id) {
       setSelected(next[0] || null);
     }
   };
@@ -45,32 +45,32 @@ export function HistoryPage() {
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {history.map((h, idx) => (
                 <li
-                  key={h.at}
+                  key={h.id}
                   style={{
                     padding: "10px 12px",
                     marginBottom: 6,
                     borderRadius: 10,
                     border: "1px solid #e2e8f0",
-                    background: selected?.at === h.at ? "#e0f2fe" : "#fff",
+                    background: selected?.id === h.id ? "#e0f2fe" : "#fff",
                     cursor: "pointer"
                   }}
                   onClick={() => setSelected(h)}
                 >
                   <div className="flex space-between" style={{ alignItems: "center", marginBottom: 4 }}>
-                    <p style={{ margin: 0, fontWeight: 700 }}>購入日: {h.payload.purchase_date || "-"}</p>
+                    <p style={{ margin: 0, fontWeight: 700 }}>購入日: {h.result.purchase_date || "-"}</p>
                     <button
                       className="btn btn-secondary"
                       style={{ padding: "4px 8px", fontSize: 12 }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDelete(h.at);
+                        handleDelete(h.id);
                       }}
                     >
                       削除
                     </button>
                   </div>
                   <p className="muted" style={{ margin: 0 }}>
-                    {new Date(h.at).toLocaleString()} / items: {h.payload.items?.length || 0}
+                    {new Date(h.timestamp).toLocaleString()} / items: {h.result.items.length}
                   </p>
                 </li>
               ))}
@@ -80,9 +80,9 @@ export function HistoryPage() {
             {selected ? (
               <>
                 <p className="muted" style={{ marginTop: 0 }}>
-                  保存時刻: {new Date(selected.at).toLocaleString()}
+                  保存時刻: {new Date(selected.timestamp).toLocaleString()}
                 </p>
-                {selected.payload.items && <ItemTable items={selected.payload.items} />}
+                <ItemTable items={selected.result.items} />
               </>
             ) : (
               <p>左のリストから選択してください。</p>

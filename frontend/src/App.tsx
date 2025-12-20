@@ -18,8 +18,8 @@ export default function App() {
 
   useEffect(() => {
     const stored = loadSessionResult();
-    if (stored?.payload) {
-      setResult(stored.payload);
+    if (stored) {
+      setResult(stored);
     }
   }, []);
 
@@ -31,7 +31,7 @@ export default function App() {
         const res = await analyzeReceipt(file);
         setSelectedFile(file);
         setResult(res);
-        saveSessionResult(res, file.name);
+        saveSessionResult(res);
         navigate("/result");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "解析に失敗しました";
@@ -120,7 +120,7 @@ export default function App() {
               result={result}
               onUpdate={(updated) => {
                 setResult(updated);
-                saveSessionResult(updated, selectedFile?.name);
+                saveSessionResult(updated);
                 navigate("/result");
               }}
               onBack={() => navigate("/result")}

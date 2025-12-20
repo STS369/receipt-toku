@@ -50,7 +50,7 @@ export function EditPage({ result, onUpdate, onBack }: Props) {
     setSearchError(null);
     try {
       const res = await metaSearch(searchTerm);
-      setHits(res.hits || []);
+      setHits(res);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "metaSearch に失敗しました";
       setSearchError(msg);
