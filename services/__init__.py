@@ -7,4 +7,3 @@ from .parser import (
     suggest_meta_candidates, is_excluded_name, search_class_names
 )
 from .analyzer import judge
-# OCRService は使用しないため除外
