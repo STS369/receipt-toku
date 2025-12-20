@@ -4,7 +4,7 @@ import { EditItemForm } from "../components/EditItemForm";
 import { Loading } from "../components/Loading";
 import { ErrorBox } from "../components/ErrorBox";
 import { metaSearch } from "../lib/api";
-import { AnalyzeResponse, ItemResult, MetaHit } from "../lib/types";
+import type { AnalyzeResponse, ItemResult, MetaHit } from "../lib/types";
 
 type Props = {
   result: AnalyzeResponse | null;

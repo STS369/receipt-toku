@@ -5,7 +5,7 @@ import { Dropzone } from "../components/Dropzone";
 import { Loading } from "../components/Loading";
 import { ErrorBox } from "../components/ErrorBox";
 import { healthCheck } from "../lib/api";
-import { AnalyzeResponse } from "../lib/types";
+import type { AnalyzeResponse } from "../lib/types";
 
 type Props = {
   file: File | null;

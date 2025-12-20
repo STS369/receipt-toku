@@ -1,5 +1,5 @@
 // Table view for analyzed items and price comparisons.
-import { ItemResult } from "../lib/types";
+import type { ItemResult } from "../lib/types";
 
 type Props = {
   items: ItemResult[];

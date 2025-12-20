@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Route, Routes, useNavigate } from "react-router-dom";
 import { analyzeReceipt } from "./lib/api";
-import { AnalyzeResponse } from "./lib/types";
+import type { AnalyzeResponse } from "./lib/types";
 import { loadSessionResult, saveSessionResult } from "./lib/storage";
 import { Home } from "./pages/Home";
 import { ResultPage } from "./pages/Result";

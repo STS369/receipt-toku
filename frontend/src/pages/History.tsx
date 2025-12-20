@@ -1,7 +1,8 @@
 // Local history viewer for saved results.
 import { useEffect, useState } from "react";
 import { ItemTable } from "../components/ItemTable";
-import { clearHistory, deleteHistoryItem, loadHistory, StoredResult } from "../lib/storage";
+import { clearHistory, deleteHistoryItem, loadHistory } from "../lib/storage";
+import type { StoredResult } from "../lib/types";
 
 export function HistoryPage() {
   const [history, setHistory] = useState<StoredResult[]>([]);

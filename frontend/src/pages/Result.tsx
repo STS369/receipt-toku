@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { DebugPanel } from "../components/DebugPanel";
 import { ItemTable } from "../components/ItemTable";
 import { saveHistory } from "../lib/storage";
-import { AnalyzeResponse, StoredResult } from "../lib/types";
+import type { AnalyzeResponse, StoredResult } from "../lib/types";
 
 type Props = {
   result: AnalyzeResponse | null;

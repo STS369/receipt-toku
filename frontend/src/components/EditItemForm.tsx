@@ -1,5 +1,5 @@
 // Editable table for item fields on the edit page.
-import { ItemResult } from "../lib/types";
+import type { ItemResult } from "../lib/types";
 
 type Props = {
   items: ItemResult[];
