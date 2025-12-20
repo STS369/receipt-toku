@@ -219,7 +219,7 @@ def resolve_canonical(raw_name: str, class_maps: dict[str, dict[str, str]]) -> C
         return CanonicalResolution(canonical=canonical, class_id=None, class_code=None)
 
     candidates = _candidate_terms_for_unknown(raw_name)
-    tried: list[dict[str, Any]] = []
+    tried: list[dict[str, str | int]] = []
 
     all_hits: list[dict[str, str]] = []
     for term in candidates:
