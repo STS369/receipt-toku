@@ -45,7 +45,7 @@ async def analyze_receipt(
     file_bytes = await file.read()
     # 実際にはここでも非同期で e-Stat を叩いて市場価格を集めることができます
     # 今回は高度なプロンプトの威力を試すため、代表的な市場価格をコンテキストとして定義
-    market_data: list[dict[str, Any]] = [
+    market_data: list[dict[str, str | int]] = [
         {"item_name": "たまねぎ", "price": 418, "unit": "kg"},
         {"item_name": "にんじん", "price": 350, "unit": "kg"},
         {"item_name": "鶏卵", "price": 280, "unit": "パック(10個)"},
