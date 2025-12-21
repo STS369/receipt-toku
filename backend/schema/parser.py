@@ -3,7 +3,7 @@ import unicodedata
 from datetime import datetime
 from functools import lru_cache
 
-from config import (
+from rules import (
     CLASS_SEARCH_ORDER,
     ESTAT_NAME_HINTS,
     EXCLUDE_WORDS,
@@ -11,11 +11,8 @@ from config import (
     UNKNOWN_RESCUE_CANDIDATE_RULES,
     UNKNOWN_RESCUE_NORMALIZE_MAP,
 )
-from schemas import CanonicalResolution
 
-# =================================================================
-# テキスト処理用関数
-# =================================================================
+from schema import CanonicalResolution
 
 
 def normalize_text(s: str) -> str:
@@ -46,18 +43,16 @@ def fold_key(s: str) -> str:
     """大文字小文字を区別せず比較するための正規化を行います。"""
     return simplify_key(s).casefold()
 
-# =================================================================
-# レシート解析・名寄せ用関数
-# =================================================================
-
 
 @lru_cache(maxsize=1)
 def _compiled_item_rules() -> list[tuple[str, list[str], list[re.Pattern[str]]]]:
     compiled: list[tuple[str, list[str], list[re.Pattern[str]]]] = []
     for rule in ITEM_RULES:
-        canonical = rule.get("canonical") or ""
-        keywords = [fold_key(str(k)) for k in (rule.get("keywords") or [str]) if k]
-        patterns = [re.compile(str(p), flags=re.IGNORECASE) for p in (rule.get("patterns") or [str]) if p]
+        can = rule.get("canonical", "")
+        assert isinstance(can, str)
+        canonical: str = can
+        keywords: list[str] = [fold_key(k) for k in (rule.get("keywords", [])) if k]
+        patterns: list[re.Pattern[str]] = [re.compile(p, flags=re.IGNORECASE) for p in (rule.get("patterns", [])) if p]
         compiled.append((canonical, keywords, patterns))
     return compiled
 

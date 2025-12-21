@@ -3,16 +3,16 @@ import json
 import logging
 from typing import Any
 
-from config import settings
 from fastapi import HTTPException
+from google.genai import types
 from loguru import logger
-from model.genai import client
-from model.prompt import SYSTEM_INSTRUCTION
 from PIL import Image
 
-# =================================================================
-# Gemini 高度分析プロンプト定義
-# =================================================================
+from config import settings
+from schema import GeminiReceiptResponse
+from model import client
+
+from .prompt import SYSTEM_INSTRUCTION
 
 
 async def analyze_receipt_with_market_data(
@@ -35,24 +35,23 @@ async def analyze_receipt_with_market_data(
         img = Image.open(io.BytesIO(file_bytes))
         logger.info("Image loaded successfully.")
 
-        # 最新のモデル実行方法
+        # 構造化出力を使用してGemini APIを呼び出し
         response = await client.aio.models.generate_content(
             model=settings.GEMINI_MODEL,
-            contents=[full_prompt, img]  # type: ignore
+            contents=[full_prompt, img],  # type: ignore
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=GeminiReceiptResponse
+            )
         )
         logger.info("Gemini analysis completed.")
         if not response.text:
             logger.error("Gemini APIから有効な応答がありませんでした。")
             raise HTTPException(status_code=500, detail="Gemini APIから有効な応答がありませんでした。")
 
-        # JSONの抽出
+        # 構造化出力により、JSONは既に正しい形式で返される
         text = response.text.strip()
         logger.info(f"Raw Gemini response text: {text}")
-        # Markdownコードブロックが含まれている場合の対策
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
         return json.loads(text)
 
     except Exception as e:
@@ -63,7 +62,3 @@ async def analyze_receipt_with_market_data(
 # 互換性のための関数
 def get_model_name() -> list[str]:
     return [settings.GEMINI_MODEL]
-
-
-def extract_text_from_image(file_bytes: bytes) -> str:
-    return "This function is deprecated. Use analyze_receipt_with_market_data instead."

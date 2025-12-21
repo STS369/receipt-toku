@@ -1,14 +1,12 @@
 import asyncio
-from typing import Any
-
 import httpx
-from config import CLASS_SEARCH_ORDER, settings
+from typing import Any
 from fastapi import HTTPException
 
-# =================================================================
-# 統計表の重要度を判定するためのキーワードと重み付けの定義
-# タイトルにこれらの言葉が含まれているほど、探し求めているデータである可能性が高いと判断します
-# =================================================================
+from config import settings
+from rules import CLASS_SEARCH_ORDER
+
+
 ESTAT_TABLE_SCORE_WEIGHTS = [
     ("全国統一", 5),
     ("月別", 3),
@@ -124,7 +122,7 @@ class EStatClient:
             raise HTTPException(status_code=502, detail=str(e))from e
 
     def _table_has_any_item(self, class_maps: dict[str, dict[str, str]], keywords: list[str]) -> bool:
-        from services import simplify_key
+        from schema import simplify_key
         # e-Statの分類ID（背番号）の意味：
         # - cat01: 品目名 (例: 卵、牛乳)
         # - cat02: 規格の詳細 (例: 10個入り、1L)
