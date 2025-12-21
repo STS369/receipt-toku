@@ -7,8 +7,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { DebugPanel } from "@/components/DebugPanel";
 import { ItemTable } from "@/components/ItemTable";
-import { saveHistory } from "@/lib/storage";
-import type { AnalyzeResponse, StoredResult } from "@/lib/types";
+import { createReceipt } from "@/lib/api";
+import type { AnalyzeResponse } from "@/lib/types";
 import { Edit, RefreshCw, Save, History, AlertTriangle, Check, Upload } from "lucide-react";
 
 type Props = {
@@ -42,15 +42,25 @@ export function ResultPage({ result, onEdit, onReAnalyze, onUpload, summaryCount
     );
   }
 
-  const save = () => {
-    const stored: StoredResult = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      timestamp: Date.now(),
-      result
-    };
-    saveHistory(stored);
-    setSaved(true);
-    setNote("ローカル履歴に保存しました");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!result) return;
+    setSaving(true);
+    try {
+      await createReceipt({
+        purchase_date: result.purchase_date || null,
+        store_name: null,
+        result
+      });
+      setSaved(true);
+      setNote("データベースに保存しました");
+    } catch (err) {
+      console.error("保存エラー:", err);
+      setNote("保存に失敗しました");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const unknownItems = items.filter((i) => (i.estat?.judgement || "UNKNOWN") === "UNKNOWN");
@@ -114,9 +124,9 @@ export function ResultPage({ result, onEdit, onReAnalyze, onUpload, summaryCount
         )}
 
         <div className="flex gap-3">
-          <Button variant="outline" onClick={save} disabled={saved}>
+          <Button variant="outline" onClick={save} disabled={saved || saving}>
             {saved ? <Check className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            {saved ? "保存済み" : "新規データとしてローカル保存"}
+            {saving ? "保存中..." : saved ? "保存済み" : "データベースに保存"}
           </Button>
           <Button variant="outline" onClick={() => navigate("/")}>
             <History className="h-4 w-4 mr-2" />

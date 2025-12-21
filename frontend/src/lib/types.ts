@@ -49,3 +49,51 @@ export type StoredResult = {
   timestamp: number;
   result: AnalyzeResponse;
 };
+
+// レシート履歴（DB保存用）
+export type Receipt = {
+  id: string;
+  user_id: string;
+  purchase_date: string | null;
+  store_name: string | null;
+  result: AnalyzeResponse;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReceiptCreate = {
+  purchase_date: string | null;
+  store_name: string | null;
+  result: AnalyzeResponse;
+};
+
+export type ReceiptUpdate = {
+  result: AnalyzeResponse;
+};
+
+// プロフィール関連
+export type Profile = {
+  id: string;
+  nickname: string | null;
+};
+
+export type ProfileUpdate = {
+  nickname: string | null;
+};
+
+// ランキング関連
+export type RankingEntry = {
+  rank: number;
+  user_id: string;
+  nickname: string | null;
+  total_saved: number;      // 純節約額（節約額 - 過払い額）
+  total_overpaid: number;   // 過払い額
+};
+
+export type RankingResponse = {
+  rankings: RankingEntry[];
+  my_rank: number | null;
+  my_nickname: string | null;
+  my_total_saved: number;
+  my_total_overpaid: number;
+};

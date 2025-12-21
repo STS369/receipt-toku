@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Loading } from "@/components/Loading";
+import { useAuth } from "@/components/auth-provider";
 import { analyzeReceipt } from "@/lib/api";
 import type { AnalyzeResponse } from "@/lib/types";
 import { loadSessionResult, saveSessionResult } from "@/lib/storage";
@@ -19,11 +20,13 @@ import { Home } from "./pages/Home";
 import { ResultPage } from "./pages/Result";
 import { EditPage } from "./pages/Edit";
 import { HistoryPage } from "./pages/History";
-import { Upload, BarChart3, Edit, History, X, Receipt } from "lucide-react";
+import { LoginPage } from "./pages/Login";
+import { Upload, BarChart3, History, X, Receipt, LogOut } from "lucide-react";
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -68,11 +71,24 @@ export default function App() {
     };
   }, [result]);
 
-  const navItems = [
+  const navItems = useMemo(() => [
     { path: "/", label: "履歴", icon: History },
     { path: "/result", label: "結果", icon: BarChart3 },
-    { path: "/edit", label: "修正", icon: Edit },
-  ];
+  ], []);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loading label="読み込み中..." />
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!user) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -113,6 +129,14 @@ export default function App() {
               </Button>
             </nav>
             <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => signOut()}
+              title={user.email}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 

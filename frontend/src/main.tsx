@@ -3,6 +3,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/components/auth-provider";
 import App from "./App";
 import "./styles/global.css";
 
@@ -14,9 +15,11 @@ if (!rootEl) {
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <ThemeProvider defaultTheme="dark" storageKey="receipt-checker-theme">
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

@@ -1,5 +1,6 @@
 // Minimal API client wrappers for the frontend.
-import { AnalyzeResponse, HealthResponse, MetaHit } from "./types";
+import { AnalyzeResponse, HealthResponse, MetaHit, Profile, ProfileUpdate, RankingResponse, Receipt, ReceiptCreate, ReceiptUpdate } from "./types";
+import { supabase } from "./supabase";
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "";
 
@@ -10,11 +11,21 @@ const buildUrl = (path: string) => {
   return `${base}${suffix}`;
 };
 
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    return { Authorization: `Bearer ${session.access_token}` };
+  }
+  return {};
+}
+
 async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const url = buildUrl(path);
+  const authHeaders = await getAuthHeaders();
+  const headers = { ...authHeaders, ...opts.headers };
   let res: Response;
   try {
-    res = await fetch(url, opts);
+    res = await fetch(url, { ...opts, headers });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "通信に失敗しました";
     throw new Error(msg);
@@ -57,5 +68,58 @@ export async function analyzeReceipt(file: File): Promise<AnalyzeResponse> {
   return request<AnalyzeResponse>("/analyzeReceipt", {
     method: "POST",
     body: form
+  });
+}
+
+export async function getRanking(limit: number = 10): Promise<RankingResponse> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return request<RankingResponse>(`/ranking?${params.toString()}`);
+}
+
+export async function getProfile(): Promise<Profile> {
+  return request<Profile>("/profile");
+}
+
+export async function updateProfile(data: ProfileUpdate): Promise<Profile> {
+  return request<Profile>("/profile", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+}
+
+// =================================================================
+// レシート履歴 API
+// =================================================================
+
+export async function listReceipts(): Promise<Receipt[]> {
+  return request<Receipt[]>("/receipts");
+}
+
+export async function createReceipt(data: ReceiptCreate): Promise<Receipt> {
+  return request<Receipt>("/receipts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+}
+
+export async function updateReceipt(id: string, data: ReceiptUpdate): Promise<Receipt> {
+  return request<Receipt>(`/receipts/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+}
+
+export async function deleteReceipt(id: string): Promise<void> {
+  await request<{ success: boolean }>(`/receipts/${id}`, {
+    method: "DELETE"
+  });
+}
+
+export async function clearReceipts(): Promise<void> {
+  await request<{ success: boolean }>("/receipts", {
+    method: "DELETE"
   });
 }

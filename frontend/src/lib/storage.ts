@@ -69,6 +69,14 @@ export function deleteHistoryItem(id: string): void {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
 }
 
+export function updateHistoryItem(id: string, result: AnalyzeResponse): void {
+  const prev = loadHistory();
+  const next = prev.map((item) =>
+    item.id === id ? { ...item, result } : item
+  );
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+}
+
 export function clearHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
 }
