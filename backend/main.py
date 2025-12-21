@@ -7,7 +7,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from model import analyze_receipt_with_market_data
-from schema import (
+from schemas import (
     EStatClient,
     Profile,
     ProfileUpdate,

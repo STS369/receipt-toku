@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from config import settings
 from rules import CLASS_SEARCH_ORDER
 
+from .parser import simplify_key
 
 ESTAT_TABLE_SCORE_WEIGHTS = [
     ("全国統一", 5),
@@ -122,7 +123,6 @@ class EStatClient:
             raise HTTPException(status_code=502, detail=str(e))from e
 
     def _table_has_any_item(self, class_maps: dict[str, dict[str, str]], keywords: list[str]) -> bool:
-        from schema import simplify_key
         # e-Statの分類ID（背番号）の意味：
         # - cat01: 品目名 (例: 卵、牛乳)
         # - cat02: 規格の詳細 (例: 10個入り、1L)

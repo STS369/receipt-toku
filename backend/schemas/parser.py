@@ -12,7 +12,7 @@ from rules import (
     UNKNOWN_RESCUE_NORMALIZE_MAP,
 )
 
-from schema import CanonicalResolution
+from .schemas import CanonicalResolution
 
 
 def normalize_text(s: str) -> str:

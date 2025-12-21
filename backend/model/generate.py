@@ -9,7 +9,7 @@ from loguru import logger
 from PIL import Image
 
 from config import settings
-from schema import GeminiReceiptResponse
+from schemas import GeminiReceiptResponse
 from model import client
 
 from .prompt import SYSTEM_INSTRUCTION
