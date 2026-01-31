@@ -37,5 +37,5 @@ npm run dev
 ```
 
 ## Slides
-- [発表スライド（PDF）]([https://<あなたのスライドURL>](https://docs.google.com/presentation/d/13wWwmAk005pKA2ThkCcgwbw-zSQN1nUybaQ9RU9Xd2s/edit?usp=sharing))
+- [発表スライド（pptx）](https://docs.google.com/presentation/d/13wWwmAk005pKA2ThkCcgwbw-zSQN1nUybaQ9RU9Xd2s/edit?usp=sharing)
 
